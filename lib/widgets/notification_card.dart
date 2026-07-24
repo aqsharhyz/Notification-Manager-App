@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/notification_item.dart';
+import '../providers/notification_provider.dart';
 
 class NotificationCard extends StatelessWidget {
   final NotificationItem item;
@@ -52,124 +54,157 @@ class NotificationCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Row: App Icon / Badge, App Name, Time, Delete
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: color.withOpacity(0.2),
-                  child: Text(
-                    item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          final provider = context.read<NotificationProvider>();
+          final success = await provider.launchNotificationAction(item);
+          if (!success && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Unable to open direct section. Opening ${item.appName}...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Row: App Icon / Badge, App Name, Time, Delete
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: item.appIcon != null ? Colors.transparent : color.withOpacity(0.2),
+                    child: item.appIcon != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.memory(
+                              item.appIcon!,
+                              width: 32,
+                              height: 32,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Text(
+                                item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Text(
+                            item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.appName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          item.packageName,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.appName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                  Text(
+                    _formatTimestamp(item.timestamp),
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (value) {
+                      if (value == 'copy') {
+                        Clipboard.setData(
+                          ClipboardData(text: '${item.title}\n${item.body}'),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Notification copied to clipboard'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      } else if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'copy',
+                        child: Row(
+                          children: [
+                            Icon(Icons.copy, size: 18),
+                            SizedBox(width: 8),
+                            Text('Copy Text'),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        item.packageName,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 11,
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                ),
+                ],
+              ),
+              const Divider(height: 16),
+              // Title
+              if (item.title.isNotEmpty) ...[
                 Text(
-                  _formatTimestamp(item.timestamp),
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
+                  item.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 20),
-                  onSelected: (value) {
-                    if (value == 'copy') {
-                      Clipboard.setData(
-                        ClipboardData(text: '${item.title}\n${item.body}'),
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notification copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    } else if (value == 'delete') {
-                      onDelete();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'copy',
-                      child: Row(
-                        children: [
-                          Icon(Icons.copy, size: 18),
-                          SizedBox(width: 8),
-                          Text('Copy Text'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 18, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(height: 4),
               ],
-            ),
-            const Divider(height: 16),
-            // Title
-            if (item.title.isNotEmpty) ...[
-              Text(
-                item.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+              // Body
+              if (item.body.isNotEmpty)
+                Text(
+                  item.body,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.85),
+                    fontSize: 13,
+                    height: 1.3,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
             ],
-            // Body
-            if (item.body.isNotEmpty)
-              Text(
-                item.body,
-                style: TextStyle(
-                  color: Colors.grey.shade800,
-                  fontSize: 13,
-                  height: 1.3,
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

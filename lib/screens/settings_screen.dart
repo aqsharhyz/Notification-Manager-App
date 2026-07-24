@@ -193,7 +193,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Permission Status Card
           Card(
-            color: provider.isPermissionGranted ? Colors.green.shade50 : Colors.amber.shade50,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? (provider.isPermissionGranted
+                    ? Colors.green.withOpacity(0.15)
+                    : Colors.amber.withOpacity(0.15))
+                : (provider.isPermissionGranted
+                    ? Colors.green.shade50
+                    : Colors.amber.shade50),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -285,6 +291,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Theme Switcher Card
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.palette, color: Colors.purple),
+                      SizedBox(width: 8),
+                      Text(
+                        'Appearance Settings',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                    subtitle: Text(
+                      provider.themeMode == ThemeMode.system
+                          ? 'Follow system settings'
+                          : (provider.themeMode == ThemeMode.dark ? 'Dark Mode' : 'Light Mode'),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    trailing: DropdownButton<ThemeMode>(
+                      value: provider.themeMode,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: ThemeMode.system,
+                          child: Text('System'),
+                        ),
+                        DropdownMenuItem(
+                          value: ThemeMode.light,
+                          child: Text('Light'),
+                        ),
+                        DropdownMenuItem(
+                          value: ThemeMode.dark,
+                          child: Text('Dark'),
+                        ),
+                      ],
+                      onChanged: (mode) {
+                        if (mode != null) {
+                          provider.setThemeMode(mode);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Retention Period Section
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -310,22 +374,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: settings.retentionDays,
+                    value: settings.retentionHours,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     items: const [
                       DropdownMenuItem(value: 0, child: Text('Never (Unlimited)')),
-                      DropdownMenuItem(value: 1, child: Text('Older than 1 Day')),
-                      DropdownMenuItem(value: 3, child: Text('Older than 3 Days')),
-                      DropdownMenuItem(value: 7, child: Text('Older than 7 Days')),
-                      DropdownMenuItem(value: 14, child: Text('Older than 14 Days')),
-                      DropdownMenuItem(value: 30, child: Text('Older than 30 Days')),
+                      DropdownMenuItem(value: 1, child: Text('Older than 1 Hour')),
+                      DropdownMenuItem(value: 24, child: Text('Older than 1 Day')),
+                      DropdownMenuItem(value: 72, child: Text('Older than 3 Days')),
+                      DropdownMenuItem(value: 168, child: Text('Older than 7 Days')),
+                      DropdownMenuItem(value: 336, child: Text('Older than 14 Days')),
+                      DropdownMenuItem(value: 720, child: Text('Older than 30 Days')),
                     ],
                     onChanged: (val) {
                       if (val != null) {
-                        provider.updateSettings(settings.copyWith(retentionDays: val));
+                        provider.updateSettings(settings.copyWith(retentionHours: val));
                       }
                     },
                   ),

@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import '../models/notification_item.dart';
 import '../models/auto_remove_settings.dart';
 import '../services/database_helper.dart';
@@ -17,6 +21,7 @@ class NotificationProvider with ChangeNotifier {
   DateTimeRange? _selectedDateRange;
   bool _isLoading = false;
   bool _isPermissionGranted = false;
+  ThemeMode _themeMode = ThemeMode.system;
 
   List<NotificationItem> get notifications => _notifications;
   List<Map<String, String>> get availableApps => _availableApps;
@@ -27,16 +32,37 @@ class NotificationProvider with ChangeNotifier {
   DateTimeRange? get selectedDateRange => _selectedDateRange;
   bool get isLoading => _isLoading;
   bool get isPermissionGranted => _isPermissionGranted;
+  ThemeMode get themeMode => _themeMode;
 
   NotificationProvider() {
     init();
   }
 
   Future<void> init() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final index = prefs.getInt('theme_mode_index') ?? ThemeMode.system.index;
+      _themeMode = ThemeMode.values[index];
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading theme mode: $e');
+    }
+
     await checkPermission();
     await loadSettings();
     await loadNotifications();
     _startListener();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('theme_mode_index', mode.index);
+    } catch (e) {
+      debugPrint('Error saving theme mode: $e');
+    }
   }
 
   Future<void> checkPermission() async {
@@ -74,13 +100,24 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, 'manage_notifications.db');
+      final exists = await File(path).exists();
+      debugPrint('[DIAGNOSTIC] SQLite DB Path: $path');
+      debugPrint('[DIAGNOSTIC] SQLite DB Exists: $exists');
+
       _notifications = await DatabaseHelper.instance.getNotifications(
         searchQuery: _searchQuery,
         appFilter: _selectedAppsFilter,
         dateRange: _selectedDateRange,
       );
 
+      final allRows = await DatabaseHelper.instance.getNotifications();
+      debugPrint('[DIAGNOSTIC] SQLite Loaded Rows (Filtered): ${_notifications.length}');
+      debugPrint('[DIAGNOSTIC] SQLite Loaded Rows (All): ${allRows.length}');
+
       _availableApps = await DatabaseHelper.instance.getUniqueApps();
+      debugPrint('[DIAGNOSTIC] SQLite Unique Apps Count: ${_availableApps.length}');
     } catch (e) {
       debugPrint('Error loading notifications: $e');
     } finally {
@@ -126,6 +163,13 @@ class NotificationProvider with ChangeNotifier {
     await loadNotifications();
   }
 
+  Future<bool> launchNotificationAction(NotificationItem item) async {
+    return await NotificationListenerManager.instance.launchNotificationAction(
+      sbnKey: item.channelId ?? '',
+      packageName: item.packageName,
+    );
+  }
+
   Future<void> clearAll() async {
     await DatabaseHelper.instance.clearAllNotifications();
     await loadNotifications();
@@ -141,10 +185,10 @@ class NotificationProvider with ChangeNotifier {
       blockedKeywords: _settings.blockedKeywords,
     );
 
-    // 2. Purge retention days with exclude rules
-    if (_settings.retentionDays > 0) {
+    // 2. Purge retention hours with exclude rules
+    if (_settings.retentionHours > 0) {
       await DatabaseHelper.instance.purgeRetentionOlderThan(
-        retentionDays: _settings.retentionDays,
+        retentionHours: _settings.retentionHours,
         excludedApps: _settings.excludedAppsFromRetention,
         excludedKeywords: _settings.excludedKeywordsFromRetention,
       );

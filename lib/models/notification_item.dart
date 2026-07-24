@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class NotificationItem {
   final int? id;
   final String packageName;
@@ -8,6 +10,7 @@ class NotificationItem {
   final bool isRead;
   final String? channelId;
   final bool isAutoRemoved;
+  final Uint8List? appIcon;
 
   NotificationItem({
     this.id,
@@ -19,6 +22,7 @@ class NotificationItem {
     this.isRead = false,
     this.channelId,
     this.isAutoRemoved = false,
+    this.appIcon,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +36,7 @@ class NotificationItem {
       'is_read': isRead ? 1 : 0,
       'channel_id': channelId,
       'is_auto_removed': isAutoRemoved ? 1 : 0,
+      'app_icon': appIcon,
     };
   }
 
@@ -46,6 +51,7 @@ class NotificationItem {
       isRead: (map['is_read'] as int? ?? 0) == 1,
       channelId: map['channel_id'] as String?,
       isAutoRemoved: (map['is_auto_removed'] as int? ?? 0) == 1,
+      appIcon: map['app_icon'] as Uint8List?,
     );
   }
 
@@ -59,6 +65,7 @@ class NotificationItem {
     bool? isRead,
     String? channelId,
     bool? isAutoRemoved,
+    Uint8List? appIcon,
   }) {
     return NotificationItem(
       id: id ?? this.id,
@@ -70,6 +77,7 @@ class NotificationItem {
       isRead: isRead ?? this.isRead,
       channelId: channelId ?? this.channelId,
       isAutoRemoved: isAutoRemoved ?? this.isAutoRemoved,
+      appIcon: appIcon ?? this.appIcon,
     );
   }
 }

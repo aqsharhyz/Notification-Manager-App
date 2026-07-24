@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 class AutoRemoveSettings {
-  final int retentionDays; // 0 = unlimited / disabled
+  final int retentionHours; // 0 = unlimited / disabled
   final List<String> blockedApps; // Package names to auto-remove
   final List<String> blockedKeywords; // Keywords in title/body to auto-remove
   final List<String> excludedAppsFromRetention; // Whitelist app packages kept forever
   final List<String> excludedKeywordsFromRetention; // Whitelist keywords kept forever
 
   AutoRemoveSettings({
-    this.retentionDays = 7,
+    this.retentionHours = 168, // Default to 7 days (168 hours)
     this.blockedApps = const [],
     this.blockedKeywords = const [],
     this.excludedAppsFromRetention = const [],
@@ -17,7 +17,7 @@ class AutoRemoveSettings {
 
   Map<String, dynamic> toMap() {
     return {
-      'retentionDays': retentionDays,
+      'retentionHours': retentionHours,
       'blockedApps': blockedApps,
       'blockedKeywords': blockedKeywords,
       'excludedAppsFromRetention': excludedAppsFromRetention,
@@ -26,8 +26,14 @@ class AutoRemoveSettings {
   }
 
   factory AutoRemoveSettings.fromMap(Map<String, dynamic> map) {
+    // Map legacy retentionDays to retentionHours if present
+    int hours = map['retentionHours'] as int? ?? 0;
+    if (hours == 0 && map['retentionDays'] != null) {
+      hours = (map['retentionDays'] as int) * 24;
+    }
+    
     return AutoRemoveSettings(
-      retentionDays: map['retentionDays'] as int? ?? 7,
+      retentionHours: hours == 0 ? 168 : hours,
       blockedApps: List<String>.from(map['blockedApps'] ?? []),
       blockedKeywords: List<String>.from(map['blockedKeywords'] ?? []),
       excludedAppsFromRetention: List<String>.from(map['excludedAppsFromRetention'] ?? []),
@@ -41,14 +47,14 @@ class AutoRemoveSettings {
       AutoRemoveSettings.fromMap(jsonDecode(source) as Map<String, dynamic>);
 
   AutoRemoveSettings copyWith({
-    int? retentionDays,
+    int? retentionHours,
     List<String>? blockedApps,
     List<String>? blockedKeywords,
     List<String>? excludedAppsFromRetention,
     List<String>? excludedKeywordsFromRetention,
   }) {
     return AutoRemoveSettings(
-      retentionDays: retentionDays ?? this.retentionDays,
+      retentionHours: retentionHours ?? this.retentionHours,
       blockedApps: blockedApps ?? this.blockedApps,
       blockedKeywords: blockedKeywords ?? this.blockedKeywords,
       excludedAppsFromRetention: excludedAppsFromRetention ?? this.excludedAppsFromRetention,

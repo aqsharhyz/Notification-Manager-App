@@ -22,8 +22,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -38,12 +39,23 @@ class DatabaseHelper {
         timestamp INTEGER NOT NULL,
         is_read INTEGER DEFAULT 0,
         channel_id TEXT,
-        is_auto_removed INTEGER DEFAULT 0
+        is_auto_removed INTEGER DEFAULT 0,
+        app_icon BLOB
       )
     ''');
 
     await db.execute('CREATE INDEX idx_timestamp ON notifications(timestamp)');
     await db.execute('CREATE INDEX idx_package_name ON notifications(package_name)');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute('ALTER TABLE notifications ADD COLUMN app_icon BLOB');
+      } catch (_) {
+        // ignore if column exists
+      }
+    }
   }
 
   Future<int> insertNotification(NotificationItem item) async {
@@ -99,9 +111,10 @@ class DatabaseHelper {
   Future<List<Map<String, String>>> getUniqueApps() async {
     final db = await database;
     final result = await db.rawQuery('''
-      SELECT DISTINCT package_name, app_name 
+      SELECT package_name, app_name, COUNT(*) as notif_count 
       FROM notifications 
-      ORDER BY app_name ASC
+      GROUP BY package_name, app_name
+      ORDER BY notif_count DESC, app_name ASC
     ''');
 
     return result.map((row) => {
@@ -154,17 +167,17 @@ class DatabaseHelper {
     return deletedCount;
   }
 
-  /// Purges notifications older than retention days UNLESS protected by exclude whitelist
+  /// Purges notifications older than retention hours UNLESS protected by exclude whitelist
   Future<int> purgeRetentionOlderThan({
-    required int retentionDays,
+    required int retentionHours,
     required List<String> excludedApps,
     required List<String> excludedKeywords,
   }) async {
-    if (retentionDays <= 0) return 0; // 0 means retention disabled / keep forever
+    if (retentionHours <= 0) return 0; // 0 means retention disabled / keep forever
 
     final db = await database;
     final cutoffTimestamp = DateTime.now()
-        .subtract(Duration(days: retentionDays))
+        .subtract(Duration(hours: retentionHours))
         .millisecondsSinceEpoch;
 
     List<String> whereClauses = ['timestamp < ?'];

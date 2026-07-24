@@ -12,6 +12,7 @@ class FilterBottomSheet extends StatefulWidget {
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
   late List<String> _tempSelectedApps;
   DateTimeRange? _tempDateRange;
+  String _searchAppQuery = '';
 
   @override
   void initState() {
@@ -37,9 +38,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -130,18 +131,52 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
           const SizedBox(height: 8),
-          availableApps.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Text('No apps registered in database yet.'),
-                )
-              : Container(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  child: ListView.builder(
+          if (availableApps.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text('No apps registered in database yet.'),
+            )
+          else ...[
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Search app name or package...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (val) {
+                setState(() {
+                  _searchAppQuery = val;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 140),
+              child: Builder(
+                builder: (context) {
+                  final filteredApps = availableApps.where((app) {
+                    final name = (app['app_name'] ?? '').toLowerCase();
+                    final pkg = (app['package_name'] ?? '').toLowerCase();
+                    final query = _searchAppQuery.toLowerCase();
+                    return name.contains(query) || pkg.contains(query);
+                  }).toList();
+
+                  if (filteredApps.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Text('No matching apps found.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
                     shrinkWrap: true,
-                    itemCount: availableApps.length,
+                    itemCount: filteredApps.length,
                     itemBuilder: (context, index) {
-                      final app = availableApps[index];
+                      final app = filteredApps[index];
                       final pkg = app['package_name'] ?? '';
                       final name = app['app_name'] ?? pkg;
                       final isSelected = _tempSelectedApps.contains(pkg);
@@ -162,8 +197,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                         },
                       );
                     },
-                  ),
-                ),
+                  );
+                },
+              ),
+            ),
+          ],
 
           const SizedBox(height: 20),
 

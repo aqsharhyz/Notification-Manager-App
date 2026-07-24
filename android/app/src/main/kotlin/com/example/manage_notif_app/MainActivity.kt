@@ -55,6 +55,37 @@ class MainActivity: FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "launchNotificationAction" -> {
+                    val sbnKey = call.argument<String>("sbnKey")
+                    val pendingIntent = MyNotificationListener.activePendingIntents[sbnKey]
+                    if (pendingIntent != null) {
+                        try {
+                            pendingIntent.send()
+                            result.success(true)
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "Error sending pending intent: ${e.message}")
+                            result.success(false)
+                        }
+                    } else {
+                        // Fallback: Launch app using package manager
+                        val packageName = call.argument<String>("packageName")
+                        if (packageName != null) {
+                            try {
+                                val intent = packageManager.getLaunchIntentForPackage(packageName)
+                                if (intent != null) {
+                                    startActivity(intent)
+                                    result.success(true)
+                                } else {
+                                    result.success(false)
+                                }
+                            } catch (e: Exception) {
+                                result.success(false)
+                            }
+                        } else {
+                            result.success(false)
+                        }
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }

@@ -35,6 +35,18 @@ class NotificationListenerManager {
     }
   }
 
+  Future<bool> launchNotificationAction({required String sbnKey, required String packageName}) async {
+    try {
+      final bool? success = await _channel.invokeMethod<bool>('launchNotificationAction', {
+        'sbnKey': sbnKey,
+        'packageName': packageName,
+      });
+      return success ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
   void startListening({
     required Function(NotificationItem) onSaved,
     required SettingsService settingsService,

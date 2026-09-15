@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/auto_remove_settings.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/notification_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -282,6 +283,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : 'Service not active. Please grant permission and try again.'),
                           ),
                         );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Export to Excel Card
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.table_view, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        'Export Data',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Export all saved notifications to an Excel spreadsheet (.xlsx) and share it.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: const BorderSide(color: Colors.green, width: 1),
+                      foregroundColor: Colors.green,
+                    ),
+                    icon: const Icon(Icons.share_outlined),
+                    label: const Text('Export to Excel & Share'),
+                    onPressed: () async {
+                      final path = await provider.exportToExcel();
+                      if (path != null) {
+                        await Share.shareXFiles([XFile(path)], text: 'Exported Notifications');
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No notifications found to export.')),
+                          );
+                        }
                       }
                     },
                   ),

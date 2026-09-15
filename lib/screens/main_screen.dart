@@ -40,33 +40,58 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.notifications_active, color: Colors.indigo),
-            SizedBox(width: 8),
-            Text(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.notifications_active, 
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
               'Manage Notif',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, letterSpacing: -0.5),
             ),
           ],
         ),
         actions: [
           // Permission status badge
-          IconButton(
-            tooltip: provider.isPermissionGranted ? 'Listener Active' : 'Permission Required',
-            icon: Icon(
-              provider.isPermissionGranted ? Icons.circle : Icons.warning,
-              color: provider.isPermissionGranted ? Colors.green : Colors.amber.shade800,
-              size: 16,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                backgroundColor: provider.isPermissionGranted 
+                    ? Colors.green.withOpacity(0.1) 
+                    : Colors.amber.withOpacity(0.1),
+                foregroundColor: provider.isPermissionGranted ? Colors.green : Colors.amber.shade800,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+              ),
+              onPressed: () {
+                if (!provider.isPermissionGranted) {
+                  provider.requestPermission();
+                }
+              },
+              icon: Icon(
+                provider.isPermissionGranted ? Icons.check_circle : Icons.warning_amber_rounded,
+                size: 14,
+              ),
+              label: Text(
+                provider.isPermissionGranted ? 'Active' : 'Fix access',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
             ),
-            onPressed: () {
-              if (!provider.isPermissionGranted) {
-                provider.requestPermission();
-              }
-            },
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.push(
                 context,
@@ -74,51 +99,100 @@ class _MainScreenState extends State<MainScreen> {
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
           // Search & Filter Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search notification title or content...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                provider.setSearchQuery('');
-                              },
-                            )
-                          : null,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    onChanged: (val) => provider.setSearchQuery(val),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search title or content...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.primary),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  provider.setSearchQuery('');
+                                },
+                              )
+                            : null,
+                        isDense: true,
+                        filled: true,
+                        fillColor: Theme.of(context).cardTheme.color,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).brightness == Brightness.light 
+                                ? const Color(0xFFE2E8F0) 
+                                : const Color(0xFF334155), 
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+                        ),
+                      ),
+                      onChanged: (val) => provider.setSearchQuery(val),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  style: IconButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(width: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  icon: Badge(
-                    isLabelVisible: provider.selectedAppsFilter.isNotEmpty || provider.selectedDateRange != null,
-                    label: Text('${provider.selectedAppsFilter.length + (provider.selectedDateRange != null ? 1 : 0)}'),
-                    child: const Icon(Icons.filter_list),
+                  child: IconButton.filledTonal(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).cardTheme.color,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(
+                          color: Theme.of(context).brightness == Brightness.light 
+                              ? const Color(0xFFE2E8F0) 
+                              : const Color(0xFF334155), 
+                          width: 1,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(12),
+                    ),
+                    icon: Badge(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      isLabelVisible: provider.selectedAppsFilter.isNotEmpty || provider.selectedDateRange != null,
+                      label: Text(
+                        '${provider.selectedAppsFilter.length + (provider.selectedDateRange != null ? 1 : 0)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                      child: Icon(Icons.tune, color: Theme.of(context).colorScheme.primary),
+                    ),
+                    onPressed: () => _openFilterBottomSheet(context),
                   ),
-                  onPressed: () => _openFilterBottomSheet(context),
                 ),
               ],
             ),

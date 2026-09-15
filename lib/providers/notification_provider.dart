@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/notification_item.dart';
@@ -195,5 +197,58 @@ class NotificationProvider with ChangeNotifier {
     }
 
     await loadNotifications();
+  }
+
+  Future<String?> exportToExcel() async {
+    try {
+      final allNotifs = await DatabaseHelper.instance.getNotifications();
+      if (allNotifs.isEmpty) return null;
+
+      final excel = Excel.createExcel();
+      final sheet = excel['Notifications'];
+      excel.delete('Sheet1'); // Remove default sheet
+
+      // Add Headers
+      sheet.appendRow([
+        TextCellValue('ID'),
+        TextCellValue('App Name'),
+        TextCellValue('Package Name'),
+        TextCellValue('Title'),
+        TextCellValue('Body'),
+        TextCellValue('Timestamp'),
+        TextCellValue('Is Read'),
+        TextCellValue('Is Auto Removed')
+      ]);
+
+      // Add Rows
+      for (final item in allNotifs) {
+        sheet.appendRow([
+          IntCellValue(item.id ?? 0),
+          TextCellValue(item.appName),
+          TextCellValue(item.packageName),
+          TextCellValue(item.title),
+          TextCellValue(item.body),
+          TextCellValue(item.timestamp.toIso8601String()),
+          IntCellValue(item.isRead ? 1 : 0),
+          IntCellValue(item.isAutoRemoved ? 1 : 0)
+        ]);
+      }
+
+      // Save file to a temporary directory
+      final tempDir = await getTemporaryDirectory();
+      final dateStr = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${tempDir.path}/notifications_export_$dateStr.xlsx';
+      final fileBytes = excel.save();
+      
+      if (fileBytes != null) {
+        final file = File(filePath);
+        await file.writeAsBytes(fileBytes);
+        return filePath;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error exporting to Excel: $e');
+      return null;
+    }
   }
 }

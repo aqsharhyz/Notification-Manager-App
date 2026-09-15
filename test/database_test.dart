@@ -35,7 +35,7 @@ void main() {
 
     test('AutoRemoveSettings model & JSON serialization', () {
       final settings = AutoRemoveSettings(
-        retentionDays: 7,
+        retentionHours: 168,
         blockedApps: ['com.junk.app'],
         blockedKeywords: ['promo'],
         excludedAppsFromRetention: ['com.whatsapp'],
@@ -45,7 +45,7 @@ void main() {
       final jsonStr = settings.toJson();
       final decoded = AutoRemoveSettings.fromJson(jsonStr);
 
-      expect(decoded.retentionDays, 7);
+      expect(decoded.retentionHours, 168);
       expect(decoded.blockedApps, contains('com.junk.app'));
       expect(decoded.blockedKeywords, contains('promo'));
       expect(decoded.excludedAppsFromRetention, contains('com.whatsapp'));

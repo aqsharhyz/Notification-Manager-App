@@ -52,8 +52,16 @@ class NotificationCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).brightness == Brightness.light 
+              ? const Color(0xFFE2E8F0) 
+              : const Color(0xFF334155),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
@@ -69,44 +77,53 @@ class NotificationCard extends StatelessWidget {
           }
         },
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Row: App Icon / Badge, App Name, Time, Delete
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: item.appIcon != null ? Colors.transparent : color.withOpacity(0.2),
-                    child: item.appIcon != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.memory(
-                              item.appIcon!,
-                              width: 32,
-                              height: 32,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Text(
-                                item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: color.withOpacity(0.24),
+                        width: 2,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: item.appIcon != null ? Colors.transparent : color.withOpacity(0.15),
+                      child: item.appIcon != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.memory(
+                                item.appIcon!,
+                                width: 32,
+                                height: 32,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Text(
+                                  item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
+                            )
+                          : Text(
+                              item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
-                          )
-                        : Text(
-                            item.appName.isNotEmpty ? item.appName[0].toUpperCase() : 'N',
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
+                    ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,6 +133,7 @@ class NotificationCard extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
+                            letterSpacing: -0.2,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -123,7 +141,7 @@ class NotificationCard extends StatelessWidget {
                         Text(
                           item.packageName,
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Colors.grey.shade500,
                             fontSize: 11,
                           ),
                           maxLines: 1,
@@ -136,7 +154,8 @@ class NotificationCard extends StatelessWidget {
                     _formatTimestamp(item.timestamp),
                     style: TextStyle(
                       color: Colors.grey.shade500,
-                      fontSize: 12,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -161,7 +180,7 @@ class NotificationCard extends StatelessWidget {
                         value: 'copy',
                         child: Row(
                           children: [
-                            Icon(Icons.copy, size: 18),
+                            Icon(Icons.copy_outlined, size: 18),
                             SizedBox(width: 8),
                             Text('Copy Text'),
                           ],
@@ -171,8 +190,8 @@ class NotificationCard extends StatelessWidget {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete, size: 18, color: Colors.red),
-                            const SizedBox(width: 8),
+                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
                             Text('Delete', style: TextStyle(color: Colors.red)),
                           ],
                         ),
@@ -181,14 +200,15 @@ class NotificationCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(height: 16),
+              const SizedBox(height: 12),
               // Title
               if (item.title.isNotEmpty) ...[
                 Text(
                   item.title,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                     fontSize: 15,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -198,9 +218,9 @@ class NotificationCard extends StatelessWidget {
                 Text(
                   item.body,
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.85),
+                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.75),
                     fontSize: 13,
-                    height: 1.3,
+                    height: 1.35,
                   ),
                 ),
             ],

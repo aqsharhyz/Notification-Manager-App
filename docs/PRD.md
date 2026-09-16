@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD) & Implementation Plan
 
+> **Documentation Hub**: [← Back to Docs Index](README.md) | **Related Guides**: [01. Business Logic](01_BUSINESS_LOGIC_FIXES.md) • [02. App Logic](02_APP_LOGIC_FIXES.md) • [03. UI/UX Fixes](03_UI_UX_FIXES.md) • [04. Bug Fixes](04_BUG_FIXES.md)
+
 A Flutter application designed to listen to system notifications on Android, save them locally in a structured SQLite database, display them in a searchable and filterable list UI, and automatically manage notification retention based on configurable auto-remove & whitelist rules.
 
 ## User Feedback & Core Requirements
@@ -127,3 +129,14 @@ Settings view for auto-remove, auto-restart, and rule management:
   1. Toggle Light/Dark modes in settings.
   2. Tap "Export to Excel" and share it to ensure file format validity.
   3. Verify tap redirection triggers target app screen opening.
+
+---
+
+## Technical Specifications & Fixes Index
+
+For detailed architectural improvements, domain policies, UI/UX refinements, and platform-specific bug fixes, refer to the dedicated engineering guides:
+
+1. **[01. Business Logic Fixes & Domain Rules](01_BUSINESS_LOGIC_FIXES.md)**: 3-tier retention policy, rule priority resolution, notification classification, and data privacy.
+2. **[02. Application Logic Fixes & Architecture](02_APP_LOGIC_FIXES.md)**: SQLite concurrency (WAL), icon storage decoupling, UI broadcast debouncing, pagination, and MethodChannel contracts.
+3. **[03. UI/UX Fixes & Interaction Design](03_UI_UX_FIXES.md)**: Xiaomi MIUI permission widget, notification card visual hierarchy, quick date presets, settings screen refactoring, and dark theme tokens.
+4. **[04. Bug Fixes, Edge Cases & Quirks](04_BUG_FIXES.md)**: PendingIntent fallback launching, database race conditions, Android 13+ Restricted Settings, image decoding memory optimization, and OEM battery-killer matrix.

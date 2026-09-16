@@ -46,6 +46,7 @@ class DatabaseHelper {
 
     await db.execute('CREATE INDEX idx_timestamp ON notifications(timestamp)');
     await db.execute('CREATE INDEX idx_package_name ON notifications(package_name)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_dedup ON notifications(package_name, title, body)');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -56,10 +57,27 @@ class DatabaseHelper {
         // ignore if column exists
       }
     }
+    try {
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_dedup ON notifications(package_name, title, body)');
+    } catch (_) {
+      // ignore
+    }
   }
 
-  Future<int> insertNotification(NotificationItem item) async {
+  Future<int> insertNotification(NotificationItem item, {bool ignoreDuplicates = true}) async {
     final db = await database;
+    if (ignoreDuplicates) {
+      final existing = await db.query(
+        'notifications',
+        columns: ['id'],
+        where: 'package_name = ? AND title = ? AND body = ?',
+        whereArgs: [item.packageName, item.title, item.body],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        return 0;
+      }
+    }
     return await db.insert('notifications', item.toMap());
   }
 
@@ -135,6 +153,19 @@ class DatabaseHelper {
   Future<int> clearAllNotifications() async {
     final db = await database;
     return await db.delete('notifications');
+  }
+
+  /// Deletes duplicate notifications, keeping only the newest record for each unique (package_name, title, body)
+  Future<int> deleteDuplicates() async {
+    final db = await database;
+    return await db.rawDelete('''
+      DELETE FROM notifications 
+      WHERE id NOT IN (
+        SELECT MAX(id) 
+        FROM notifications 
+        GROUP BY package_name, title, body
+      )
+    ''');
   }
 
   /// Purges notifications matching blocked apps or blocked keywords after saving

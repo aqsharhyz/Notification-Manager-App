@@ -12,6 +12,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -27,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    Timer(const Duration(milliseconds: 500), () {
+    _timer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
@@ -44,6 +45,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -64,9 +66,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   color: isDark ? Colors.indigo.withOpacity(0.2) : Colors.indigo.shade50,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isDark ? Colors.indigo.shade900 : Colors.indigo.shade200).withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
-                child: const FlutterLogo(
-                  size: 80,
+                child: Icon(
+                  Icons.notifications_active_rounded,
+                  size: 72,
+                  color: isDark ? Colors.indigo.shade200 : Colors.indigo.shade700,
                 ),
               ),
             ),

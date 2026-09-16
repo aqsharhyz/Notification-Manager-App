@@ -86,6 +86,44 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                 }
+                "isIgnoringBatteryOptimizations" -> {
+                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    val isIgnoring = pm.isIgnoringBatteryOptimizations(packageName)
+                    result.success(isIgnoring)
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = android.net.Uri.parse("package:$packageName")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ERROR", e.message, null)
+                    }
+                }
+                "isListenerConnected" -> {
+                    val isConnected = MyNotificationListener.instance != null
+                    result.success(isConnected)
+                }
+                "rebindListenerService" -> {
+                    MyNotificationListener.ensureServiceBound(this)
+                    val isConnected = MyNotificationListener.instance != null
+                    result.success(isConnected)
+                }
+                "isKeepAliveRunning" -> {
+                    result.success(KeepAliveService.isRunning)
+                }
+                "setKeepAliveService" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    if (enabled) {
+                        KeepAliveService.start(this)
+                    } else {
+                        KeepAliveService.stop(this)
+                    }
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -99,6 +137,11 @@ class MainActivity: FlutterActivity() {
         } else {
             registerReceiver(receiver, filter)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MyNotificationListener.ensureServiceBound(this)
     }
 
     override fun onDestroy() {

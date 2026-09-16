@@ -62,15 +62,21 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
-          // Permission status badge
+          // Permission & Connection status badge
           Container(
             margin: const EdgeInsets.only(right: 8),
             child: TextButton.icon(
               style: TextButton.styleFrom(
-                backgroundColor: provider.isPermissionGranted 
-                    ? Colors.green.withOpacity(0.1) 
-                    : Colors.amber.withOpacity(0.1),
-                foregroundColor: provider.isPermissionGranted ? Colors.green : Colors.amber.shade800,
+                backgroundColor: !provider.isPermissionGranted
+                    ? Colors.amber.withOpacity(0.12)
+                    : (!provider.isListenerConnected
+                        ? Colors.orange.withOpacity(0.15)
+                        : Colors.green.withOpacity(0.1)),
+                foregroundColor: !provider.isPermissionGranted
+                    ? Colors.amber.shade800
+                    : (!provider.isListenerConnected
+                        ? Colors.orange.shade900
+                        : Colors.green),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
@@ -78,14 +84,24 @@ class _MainScreenState extends State<MainScreen> {
               onPressed: () {
                 if (!provider.isPermissionGranted) {
                   provider.requestPermission();
+                } else if (!provider.isListenerConnected) {
+                  provider.rebindListener();
                 }
               },
               icon: Icon(
-                provider.isPermissionGranted ? Icons.check_circle : Icons.warning_amber_rounded,
+                !provider.isPermissionGranted
+                    ? Icons.warning_amber_rounded
+                    : (!provider.isListenerConnected
+                        ? Icons.sync_problem
+                        : Icons.check_circle),
                 size: 14,
               ),
               label: Text(
-                provider.isPermissionGranted ? 'Active' : 'Fix access',
+                !provider.isPermissionGranted
+                    ? 'Fix access'
+                    : (!provider.isListenerConnected
+                        ? 'Reconnect'
+                        : 'Active'),
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),

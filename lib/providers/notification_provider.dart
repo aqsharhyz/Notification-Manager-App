@@ -11,7 +11,7 @@ import '../services/database_helper.dart';
 import '../services/settings_service.dart';
 import '../services/notification_listener_service.dart';
 
-class NotificationProvider with ChangeNotifier {
+class NotificationProvider with ChangeNotifier, WidgetsBindingObserver {
   final SettingsService _settingsService = SettingsService();
 
   List<NotificationItem> _notifications = [];
@@ -23,6 +23,9 @@ class NotificationProvider with ChangeNotifier {
   DateTimeRange? _selectedDateRange;
   bool _isLoading = false;
   bool _isPermissionGranted = false;
+  bool _isListenerConnected = false;
+  bool _isKeepAliveRunning = false;
+  bool _isIgnoringBatteryOptimizations = false;
   ThemeMode _themeMode = ThemeMode.system;
 
   List<NotificationItem> get notifications => _notifications;
@@ -34,10 +37,40 @@ class NotificationProvider with ChangeNotifier {
   DateTimeRange? get selectedDateRange => _selectedDateRange;
   bool get isLoading => _isLoading;
   bool get isPermissionGranted => _isPermissionGranted;
+  bool get isListenerConnected => _isListenerConnected;
+  bool get isKeepAliveRunning => _isKeepAliveRunning;
+  bool get isIgnoringBatteryOptimizations => _isIgnoringBatteryOptimizations;
   ThemeMode get themeMode => _themeMode;
 
   NotificationProvider() {
+    WidgetsBinding.instance.addObserver(this);
     init();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[LIFECYCLE] App resumed - Refreshing SQLite notifications and checking listener connection');
+      onAppResumed();
+    }
+  }
+
+  Future<void> onAppResumed() async {
+    await checkPermission();
+    await checkListenerConnection();
+    // If permission is granted but listener disconnected, force rebind
+    if (_isPermissionGranted && !_isListenerConnected) {
+      debugPrint('[LIFECYCLE] Listener service was disconnected, executing rebind...');
+      await rebindListener();
+    }
+    await loadNotifications();
+    await fetchActiveNotifications();
   }
 
   Future<void> init() async {
@@ -51,7 +84,10 @@ class NotificationProvider with ChangeNotifier {
     }
 
     await checkPermission();
+    await checkListenerConnection();
+    await checkBatteryOptimization();
     await loadSettings();
+    await syncKeepAliveService();
     await loadNotifications();
     _startListener();
   }
@@ -72,9 +108,37 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> checkListenerConnection() async {
+    _isListenerConnected = await NotificationListenerManager.instance.isListenerConnected();
+    _isKeepAliveRunning = await NotificationListenerManager.instance.isKeepAliveRunning();
+    notifyListeners();
+  }
+
+  Future<bool> rebindListener() async {
+    final success = await NotificationListenerManager.instance.rebindListenerService();
+    await checkListenerConnection();
+    return success;
+  }
+
+  Future<void> syncKeepAliveService() async {
+    await NotificationListenerManager.instance.setKeepAliveService(_settings.keepAliveNotificationEnabled);
+    await checkListenerConnection();
+  }
+
   Future<void> requestPermission() async {
     await NotificationListenerManager.instance.requestPermission();
     await checkPermission();
+    await checkListenerConnection();
+  }
+
+  Future<void> checkBatteryOptimization() async {
+    _isIgnoringBatteryOptimizations = await NotificationListenerManager.instance.isIgnoringBatteryOptimizations();
+    notifyListeners();
+  }
+
+  Future<void> requestIgnoreBatteryOptimizations() async {
+    await NotificationListenerManager.instance.requestIgnoreBatteryOptimizations();
+    await checkBatteryOptimization();
   }
 
   Future<bool> fetchActiveNotifications() async {
@@ -93,6 +157,7 @@ class NotificationProvider with ChangeNotifier {
   Future<void> updateSettings(AutoRemoveSettings newSettings) async {
     _settings = newSettings;
     await _settingsService.saveSettings(newSettings);
+    await syncKeepAliveService();
     notifyListeners();
     await runCleanupNow();
   }
@@ -196,7 +261,20 @@ class NotificationProvider with ChangeNotifier {
       );
     }
 
+    // 3. Purge duplicates if autoDeleteDuplicates is enabled
+    if (_settings.autoDeleteDuplicates) {
+      await DatabaseHelper.instance.deleteDuplicates();
+    }
+
     await loadNotifications();
+  }
+
+  Future<int> deleteDuplicatesNow() async {
+    _isLoading = true;
+    notifyListeners();
+    final deletedCount = await DatabaseHelper.instance.deleteDuplicates();
+    await loadNotifications();
+    return deletedCount;
   }
 
   Future<String?> exportToExcel() async {

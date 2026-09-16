@@ -2,14 +2,18 @@ package com.example.manage_notif_app
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -21,12 +25,81 @@ class MyNotificationListener : NotificationListenerService() {
         var instance: MyNotificationListener? = null
         // Store pending intents in memory to allow launching specific notification targets
         val activePendingIntents = HashMap<String, android.app.PendingIntent>()
+
+        /**
+         * Ensures that the NotificationListenerService is bound to the Android OS.
+         * If the service is disconnected or silent unbind occurred, uses requestRebind
+         * or component-toggle to force Android NotificationManagerService to reconnect.
+         */
+        fun ensureServiceBound(context: Context) {
+            val isPermissionGranted = try {
+                val enabledPackages = NotificationManagerCompat.getEnabledListenerPackages(context)
+                enabledPackages.contains(context.packageName)
+            } catch (e: Exception) {
+                false
+            }
+
+            if (!isPermissionGranted) {
+                Log.d("MyNotificationListener", "Notification permission not granted, skipping rebind")
+                return
+            }
+
+            // 1. Try requestRebind on Android N+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                try {
+                    NotificationListenerService.requestRebind(ComponentName(context, MyNotificationListener::class.java))
+                    Log.d("MyNotificationListener", "requestRebind invoked successfully")
+                    return
+                } catch (e: Exception) {
+                    Log.w("MyNotificationListener", "requestRebind failed: ${e.message}")
+                }
+            }
+
+            // 2. Component toggle trick: Force Android OS NotificationManagerService to reconnect binder
+            try {
+                val componentName = ComponentName(context, MyNotificationListener::class.java)
+                val pm = context.packageManager
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                pm.setComponentEnabledSetting(
+                    componentName,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                Log.d("MyNotificationListener", "Component toggle rebind executed successfully")
+            } catch (e: Exception) {
+                Log.e("MyNotificationListener", "Component toggle rebind failed: ${e.message}", e)
+            }
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         Log.d(TAG, "Notification Listener Service Created")
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        instance = this
+        Log.d(TAG, "Notification Listener Service CONNECTED to Android system!")
+    }
+
+    override fun onListenerDisconnected() {
+        Log.w(TAG, "Notification Listener Service DISCONNECTED from Android system!")
+        instance = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                NotificationListenerService.requestRebind(ComponentName(this, MyNotificationListener::class.java))
+                Log.d(TAG, "requestRebind triggered from onListenerDisconnected")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to requestRebind in onListenerDisconnected: ${e.message}")
+            }
+        }
+        super.onListenerDisconnected()
     }
 
     override fun onDestroy() {
@@ -127,8 +200,8 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun saveAndCleanupNotification(packageName: String, appName: String, title: String, body: String, timestamp: Long, sbnKey: String?) {
         try {
-            val dbFile = File(applicationContext.filesDir.parentFile, "databases/manage_notifications.db")
-            if (!dbFile.exists()) {
+            val dbFile = applicationContext.getDatabasePath("manage_notifications.db")
+            if (dbFile.parentFile?.exists() != true) {
                 dbFile.parentFile?.mkdirs()
             }
             
@@ -158,6 +231,34 @@ class MyNotificationListener : NotificationListenerService() {
                 // Ignore if it already exists
             }
 
+            // Create index for fast duplicate lookup
+            try {
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_dedup ON notifications(package_name, title, body)")
+            } catch (e: Exception) {
+                // Ignore if index creation fails
+            }
+
+            // Check settings for duplicate prevention
+            val prefs = applicationContext.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val settingsJsonStr = prefs.getString("flutter.auto_remove_settings_v1", null)
+            val settings = if (settingsJsonStr != null) JSONObject(settingsJsonStr) else null
+            val ignoreDuplicates = settings?.optBoolean("ignoreDuplicates", true) ?: true
+            val autoDeleteDuplicates = settings?.optBoolean("autoDeleteDuplicates", true) ?: true
+
+            if (ignoreDuplicates) {
+                val cursor = db.rawQuery(
+                    "SELECT id FROM notifications WHERE package_name = ? AND title = ? AND body = ? LIMIT 1",
+                    arrayOf(packageName, title, body)
+                )
+                val isDuplicate = cursor.count > 0
+                cursor.close()
+                if (isDuplicate) {
+                    Log.d(TAG, "Skipping duplicate notification (tdk dimasukkan ke record): $packageName | Title: $title | Body: $body")
+                    db.close()
+                    return
+                }
+            }
+
             val appIconBytes = getAppIconBytes(packageName)
 
             val values = ContentValues().apply {
@@ -176,10 +277,7 @@ class MyNotificationListener : NotificationListenerService() {
             Log.d(TAG, "Saved to SQLite successfully. ID: $insertedId")
 
             // Apply cleanup rules inside the same database transaction/connection
-            val prefs = applicationContext.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val settingsJsonStr = prefs.getString("flutter.auto_remove_settings_v1", null)
-            if (settingsJsonStr != null) {
-                val settings = JSONObject(settingsJsonStr)
+            if (settings != null) {
                 val retentionHours = settings.optInt("retentionHours", 0)
                 val retentionDays = settings.optInt("retentionDays", 0)
                 
@@ -233,6 +331,22 @@ class MyNotificationListener : NotificationListenerService() {
                 if (shouldPurge) {
                     db.delete("notifications", "id = ?", arrayOf(insertedId.toString()))
                     Log.d(TAG, "Purged matching blocked notification successfully")
+                }
+
+                // Auto-delete duplicates if enabled
+                if (autoDeleteDuplicates) {
+                    try {
+                        db.execSQL("""
+                            DELETE FROM notifications 
+                            WHERE id NOT IN (
+                                SELECT MAX(id) 
+                                FROM notifications 
+                                GROUP BY package_name, title, body
+                            )
+                        """)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error running autoDeleteDuplicates: ${e.message}")
+                    }
                 }
 
                 // Apply retention policy if enabled

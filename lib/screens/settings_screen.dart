@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -195,20 +194,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Permission Status Card
           Card(
             color: Theme.of(context).brightness == Brightness.dark
-                ? (provider.isPermissionGranted
-                    ? Colors.green.withOpacity(0.15)
-                    : Colors.amber.withOpacity(0.15))
-                : (provider.isPermissionGranted
-                    ? Colors.green.shade50
-                    : Colors.amber.shade50),
+                ? (!provider.isPermissionGranted
+                    ? Colors.amber.withOpacity(0.15)
+                    : (!provider.isListenerConnected
+                        ? Colors.orange.withOpacity(0.15)
+                        : Colors.green.withOpacity(0.15)))
+                : (!provider.isPermissionGranted
+                    ? Colors.amber.shade50
+                    : (!provider.isListenerConnected
+                        ? Colors.orange.shade50
+                        : Colors.green.shade50)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Icon(
-                    provider.isPermissionGranted ? Icons.check_circle : Icons.warning_amber_rounded,
-                    color: provider.isPermissionGranted ? Colors.green : Colors.amber.shade800,
+                    !provider.isPermissionGranted
+                        ? Icons.warning_amber_rounded
+                        : (!provider.isListenerConnected
+                            ? Icons.sync_problem
+                            : Icons.check_circle),
+                    color: !provider.isPermissionGranted
+                        ? Colors.amber.shade800
+                        : (!provider.isListenerConnected
+                            ? Colors.orange.shade900
+                            : Colors.green),
                     size: 32,
                   ),
                   const SizedBox(width: 14),
@@ -217,24 +228,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          provider.isPermissionGranted
-                              ? 'Notification Access Granted'
-                              : 'Notification Access Needed',
+                          !provider.isPermissionGranted
+                              ? 'Notification Access Needed'
+                              : (!provider.isListenerConnected
+                                  ? 'Listener Disconnected'
+                                  : 'Notification Access Connected'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          provider.isPermissionGranted
-                              ? 'App is currently listening for system notifications.'
-                              : 'Grant notification listener permission in Android settings.',
+                          !provider.isPermissionGranted
+                              ? 'Grant notification listener permission in Android settings.'
+                              : (!provider.isListenerConnected
+                                  ? 'Izin aktif, tapi koneksi terputus oleh Android. Tap Reconnect.'
+                                  : 'App is actively listening & connected to Android system.'),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () => provider.requestPermission(),
-                    child: Text(provider.isPermissionGranted ? 'Settings' : 'Grant'),
+                    onPressed: () {
+                      if (!provider.isPermissionGranted) {
+                        provider.requestPermission();
+                      } else if (!provider.isListenerConnected) {
+                        provider.rebindListener();
+                      } else {
+                        provider.requestPermission();
+                      }
+                    },
+                    child: Text(
+                      !provider.isPermissionGranted
+                          ? 'Grant'
+                          : (!provider.isListenerConnected
+                              ? 'Reconnect'
+                              : 'Settings'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Battery Saver Settings Card
+          Card(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? (provider.isIgnoringBatteryOptimizations
+                    ? Colors.green.withOpacity(0.15)
+                    : Colors.amber.withOpacity(0.15))
+                : (provider.isIgnoringBatteryOptimizations
+                    ? Colors.green.shade50
+                    : Colors.amber.shade50),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    provider.isIgnoringBatteryOptimizations ? Icons.battery_charging_full : Icons.battery_alert,
+                    color: provider.isIgnoringBatteryOptimizations ? Colors.green : Colors.amber.shade800,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          provider.isIgnoringBatteryOptimizations
+                              ? 'Battery Saver Exempted'
+                              : 'Battery Saver Exemption Needed',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          provider.isIgnoringBatteryOptimizations
+                              ? 'Background listener is protected from system sleep.'
+                              : 'Allow app to run unrestricted to prevent background listener stops.',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => provider.requestIgnoreBatteryOptimizations(),
+                    child: Text(provider.isIgnoringBatteryOptimizations ? 'Configured' : 'Exempt'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Keep-Alive Background Service Card
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: Colors.teal),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Keep App Alive in Background',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: provider.isKeepAliveRunning ? Colors.teal.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          provider.isKeepAliveRunning ? 'Running' : 'Off',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: provider.isKeepAliveRunning ? Colors.teal : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Menjalankan notifikasi ongoing berprioritas rendah agar background listener tidak dibekukan atau dimatikan oleh sistem Android / pembersih RAM saat Anda menutup aplikasi.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Layanan Latar Belakang Kebal Kill',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      settings.keepAliveNotificationEnabled
+                          ? 'Aktif — Notifikasi pemantau sedang berjalan.'
+                          : 'Nonaktif — Berisiko dimatikan sistem saat keluar aplikasi.',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    value: settings.keepAliveNotificationEnabled,
+                    onChanged: (val) {
+                      provider.updateSettings(settings.copyWith(keepAliveNotificationEnabled: val));
+                    },
                   ),
                 ],
               ),
@@ -445,6 +587,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (val != null) {
                         provider.updateSettings(settings.copyWith(retentionHours: val));
                       }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Duplicate Prevention & Auto-Delete Card
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.content_copy, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text(
+                        'Duplicate Handling & Prevention',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Control how duplicate notifications (identical app, title, and body) are handled:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.do_not_disturb_on_outlined, color: Colors.orange),
+                    title: const Text(
+                      'Skip Duplicates (Tdk Masukkan Jika Duplikat)',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'Do not record to database if identical notification already exists.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    value: settings.ignoreDuplicates,
+                    onChanged: (val) {
+                      provider.updateSettings(settings.copyWith(ignoreDuplicates: val));
+                    },
+                  ),
+                  const Divider(height: 16),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.auto_delete_outlined, color: Colors.blue),
+                    title: const Text(
+                      'Auto-Delete Duplicates on Cleanup',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'Automatically prune duplicate records during cleanup, keeping only the latest.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    value: settings.autoDeleteDuplicates,
+                    onChanged: (val) {
+                      provider.updateSettings(settings.copyWith(autoDeleteDuplicates: val));
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(40),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                    ),
+                    icon: const Icon(Icons.delete_sweep, size: 18),
+                    label: const Text('Delete Existing Duplicates Now'),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final count = await provider.deleteDuplicatesNow();
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            count > 0
+                                ? 'Successfully removed $count duplicate notification(s)!'
+                                : 'No duplicate notifications found.',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -670,12 +901,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: const Icon(Icons.cleaning_services),
             label: const Text('Run Auto-Cleanup Rules Now'),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               await provider.runCleanupNow();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Auto-cleanup executed successfully.')),
-                );
-              }
+              if (!mounted) return;
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Auto-cleanup executed successfully.')),
+              );
             },
           ),
           const SizedBox(height: 12),
@@ -689,6 +920,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: const Icon(Icons.delete_forever),
             label: const Text('Clear All Saved Notifications'),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
@@ -703,11 +935,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               if (confirm == true) {
                 await provider.clearAll();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('All notifications cleared.')),
-                  );
-                }
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('All notifications cleared.')),
+                );
               }
             },
           ),

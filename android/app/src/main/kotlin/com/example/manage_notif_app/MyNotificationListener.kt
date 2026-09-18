@@ -34,9 +34,17 @@ class MyNotificationListener : NotificationListenerService() {
         fun ensureServiceBound(context: Context) {
             val isPermissionGranted = try {
                 val enabledPackages = NotificationManagerCompat.getEnabledListenerPackages(context)
-                enabledPackages.contains(context.packageName)
+                if (enabledPackages.contains(context.packageName)) {
+                    true
+                } else {
+                    val cn = ComponentName(context, MyNotificationListener::class.java)
+                    val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                    flat != null && flat.contains(cn.flattenToString())
+                }
             } catch (e: Exception) {
-                false
+                val cn = ComponentName(context, MyNotificationListener::class.java)
+                val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                flat != null && flat.contains(cn.flattenToString())
             }
 
             if (!isPermissionGranted) {
@@ -49,7 +57,6 @@ class MyNotificationListener : NotificationListenerService() {
                 try {
                     NotificationListenerService.requestRebind(ComponentName(context, MyNotificationListener::class.java))
                     Log.d("MyNotificationListener", "requestRebind invoked successfully")
-                    return
                 } catch (e: Exception) {
                     Log.w("MyNotificationListener", "requestRebind failed: ${e.message}")
                 }

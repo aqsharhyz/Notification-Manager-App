@@ -115,9 +115,15 @@ class NotificationProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   Future<bool> rebindListener() async {
-    final success = await NotificationListenerManager.instance.rebindListenerService();
+    await NotificationListenerManager.instance.rebindListenerService();
+    // Allow Android OS to complete asynchronous IPC service binding
+    await Future.delayed(const Duration(milliseconds: 350));
     await checkListenerConnection();
-    return success;
+    if (!_isListenerConnected) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      await checkListenerConnection();
+    }
+    return _isListenerConnected;
   }
 
   Future<void> syncKeepAliveService() async {

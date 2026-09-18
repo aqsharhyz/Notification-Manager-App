@@ -21,12 +21,173 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
+  bool _isReconnecting = false;
+
   void _openFilterBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const FilterBottomSheet(),
+    );
+  }
+
+  Future<void> _handleAccessButton(BuildContext context, NotificationProvider provider) async {
+    if (_isReconnecting) return;
+
+    if (!provider.isPermissionGranted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      await provider.requestPermission();
+      return;
+    }
+
+    if (!provider.isListenerConnected) {
+      setState(() {
+        _isReconnecting = true;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Menghubungkan ulang ke listener notifikasi Android...'),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final success = await provider.rebindListener();
+      if (!mounted) return;
+
+      setState(() {
+        _isReconnecting = false;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Berhasil terhubung kembali ke sistem notifikasi!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Layanan belum merespon. Silakan toggle (matikan & hidupkan lagi) izin di Pengaturan Android.',
+            ),
+            action: SnackBarAction(
+              label: 'Pengaturan',
+              textColor: Colors.amber,
+              onPressed: () => provider.requestPermission(),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        await provider.requestPermission();
+      }
+      return;
+    }
+
+    // When already active & connected
+    _showConnectionInfoSheet(context, provider);
+  }
+
+  void _showConnectionInfoSheet(BuildContext context, NotificationProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Status Akses Notifikasi',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Aplikasi terhubung normal dengan sistem Android dan aktif merekam notifikasi yang masuk.',
+                  style: TextStyle(fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await provider.rebindListener();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Status koneksi diperbarui'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Refresh'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          provider.requestPermission();
+                        },
+                        icon: const Icon(Icons.settings, size: 16),
+                        label: const Text('Buka Pengaturan'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -43,10 +204,10 @@ class _MainScreenState extends State<MainScreen> {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.notifications_active, 
@@ -81,27 +242,29 @@ class _MainScreenState extends State<MainScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
               ),
-              onPressed: () {
-                if (!provider.isPermissionGranted) {
-                  provider.requestPermission();
-                } else if (!provider.isListenerConnected) {
-                  provider.rebindListener();
-                }
-              },
-              icon: Icon(
-                !provider.isPermissionGranted
-                    ? Icons.warning_amber_rounded
-                    : (!provider.isListenerConnected
-                        ? Icons.sync_problem
-                        : Icons.check_circle),
-                size: 14,
-              ),
+              onPressed: () => _handleAccessButton(context, provider),
+              icon: _isReconnecting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      !provider.isPermissionGranted
+                          ? Icons.warning_amber_rounded
+                          : (!provider.isListenerConnected
+                              ? Icons.sync_problem
+                              : Icons.check_circle),
+                      size: 14,
+                    ),
               label: Text(
-                !provider.isPermissionGranted
-                    ? 'Fix access'
-                    : (!provider.isListenerConnected
-                        ? 'Reconnect'
-                        : 'Active'),
+                _isReconnecting
+                    ? 'Connecting...'
+                    : (!provider.isPermissionGranted
+                        ? 'Fix access'
+                        : (!provider.isListenerConnected
+                            ? 'Reconnect'
+                            : 'Active')),
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),

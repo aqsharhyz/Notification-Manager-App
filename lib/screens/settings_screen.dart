@@ -87,6 +87,94 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _excludeKeywordController.clear();
   }
 
+  bool _isReconnectingListener = false;
+
+  Future<void> _handleListenerAccessButton(BuildContext context, NotificationProvider provider) async {
+    if (_isReconnectingListener) return;
+
+    if (!provider.isPermissionGranted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      await provider.requestPermission();
+      return;
+    }
+
+    if (!provider.isListenerConnected) {
+      setState(() {
+        _isReconnectingListener = true;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Menghubungkan ulang ke listener notifikasi Android...'),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final success = await provider.rebindListener();
+      if (!mounted) return;
+
+      setState(() {
+        _isReconnectingListener = false;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Berhasil terhubung kembali ke sistem notifikasi!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Layanan belum merespon. Silakan toggle (matikan & hidupkan lagi) izin di Pengaturan Android.',
+            ),
+            action: SnackBarAction(
+              label: 'Pengaturan',
+              textColor: Colors.amber,
+              onPressed: () => provider.requestPermission(),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        await provider.requestPermission();
+      }
+      return;
+    }
+
+    // Already connected -> open Android settings
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    await provider.requestPermission();
+  }
+
   void _removeExcludedKeyword(NotificationProvider provider, String kw) {
     final current = List<String>.from(provider.settings.excludedKeywordsFromRetention);
     current.remove(kw);
@@ -248,22 +336,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      if (!provider.isPermissionGranted) {
-                        provider.requestPermission();
-                      } else if (!provider.isListenerConnected) {
-                        provider.rebindListener();
-                      } else {
-                        provider.requestPermission();
-                      }
-                    },
-                    child: Text(
-                      !provider.isPermissionGranted
-                          ? 'Grant'
-                          : (!provider.isListenerConnected
-                              ? 'Reconnect'
-                              : 'Settings'),
-                    ),
+                    onPressed: () => _handleListenerAccessButton(context, provider),
+                    child: _isReconnectingListener
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            !provider.isPermissionGranted
+                                ? 'Grant'
+                                : (!provider.isListenerConnected
+                                    ? 'Reconnect'
+                                    : 'Settings'),
+                          ),
                   ),
                 ],
               ),

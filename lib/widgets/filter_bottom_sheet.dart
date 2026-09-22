@@ -22,10 +22,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     _tempDateRange = provider.selectedDateRange;
   }
 
-  void _setDatePreset(Duration duration) {
+  void _setDatePreset(int days) {
     final now = DateTime.now();
     final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
-    final start = DateTime(now.year, now.month, now.day).subtract(duration);
+    final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days));
     setState(() {
       _tempDateRange = DateTimeRange(start: start, end: end);
     });
@@ -37,252 +37,333 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     final availableApps = provider.availableApps;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final filteredApps = availableApps.where((app) {
+      final name = (app['app_name'] ?? '').toLowerCase();
+      final pkg = (app['package_name'] ?? '').toLowerCase();
+      final query = _searchAppQuery.toLowerCase();
+      return name.contains(query) || pkg.contains(query);
+    }).toList();
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: isDark ? const Color(0xFF151D2C) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 30,
+            offset: const Offset(0, -6),
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Drag handle/indicator
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(2),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag Indicator
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Filter Notifications',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.4),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _tempSelectedApps.clear();
-                    _tempDateRange = null;
-                  });
-                },
-                child: const Text('Reset All', style: TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
 
-          // Date Range Presets
-          const Text(
-            'Date Range',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('Today'),
-                selected: _tempDateRange != null &&
-                    _tempDateRange!.start.day == DateTime.now().day &&
-                    _tempDateRange!.end.difference(_tempDateRange!.start).inDays == 0,
-                onSelected: (selected) {
-                  if (selected) _setDatePreset(const Duration(days: 0));
-                },
-              ),
-              ChoiceChip(
-                label: const Text('Last 7 Days'),
-                selected: _tempDateRange != null &&
-                    _tempDateRange!.end.difference(_tempDateRange!.start).inDays == 7,
-                onSelected: (selected) {
-                  if (selected) _setDatePreset(const Duration(days: 7));
-                },
-              ),
-              ChoiceChip(
-                label: const Text('Last 30 Days'),
-                selected: _tempDateRange != null &&
-                    _tempDateRange!.end.difference(_tempDateRange!.start).inDays == 30,
-                onSelected: (selected) {
-                  if (selected) _setDatePreset(const Duration(days: 30));
-                },
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.date_range_outlined, size: 14),
-                label: Text(_tempDateRange == null
-                    ? 'Custom Range'
-                    : '${_tempDateRange!.start.day}/${_tempDateRange!.start.month} - ${_tempDateRange!.end.day}/${_tempDateRange!.end.month}'),
-                onPressed: () async {
-                  final picked = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
-                    initialDateRange: _tempDateRange,
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _tempDateRange = picked;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Apps Multiselect Filter
-          const Text(
-            'Filter by Apps',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          if (availableApps.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('No apps registered in database yet.', style: TextStyle(color: Colors.grey)),
-            )
-          else ...[
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Search app name or package...',
-                hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, size: 18),
-                isDense: true,
-                filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), 
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
-                ),
-              ),
-              onChanged: (val) {
-                setState(() {
-                  _searchAppQuery = val;
-                });
-              },
-            ),
-            const SizedBox(height: 10),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 180),
-              child: Builder(
-                builder: (context) {
-                  final filteredApps = availableApps.where((app) {
-                    final name = (app['app_name'] ?? '').toLowerCase();
-                    final pkg = (app['package_name'] ?? '').toLowerCase();
-                    final query = _searchAppQuery.toLowerCase();
-                    return name.contains(query) || pkg.contains(query);
-                  }).toList();
-
-                  if (filteredApps.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text('No matching apps found.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.tune_rounded, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Filter Notifications',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.4),
                       ),
-                    );
-                  }
+                    ],
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _tempSelectedApps.clear();
+                        _tempDateRange = null;
+                        _searchAppQuery = '';
+                      });
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Reset All', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: filteredApps.length,
-                    itemBuilder: (context, index) {
-                      final app = filteredApps[index];
-                      final pkg = app['package_name'] ?? '';
-                      final name = app['app_name'] ?? pkg;
-                      final isSelected = _tempSelectedApps.contains(pkg);
+            const Divider(height: 1),
 
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: isSelected 
-                              ? Theme.of(context).colorScheme.primary.withOpacity(0.08)
-                              : Colors.transparent,
+            // Scrollable Filters
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section 1: Date Range
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'TIMEFRAME',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          ),
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          title: Text(
-                            name, 
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          subtitle: Text(
-                            pkg, 
-                            style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
-                          ),
-                          trailing: isSelected 
-                              ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 20)
-                              : Icon(Icons.radio_button_off_outlined, color: Colors.grey.shade400, size: 20),
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                _tempSelectedApps.remove(pkg);
-                              } else {
-                                _tempSelectedApps.add(pkg);
-                              }
-                            });
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildDateChip('Today', 0),
+                        _buildDateChip('Last 7 Days', 7),
+                        _buildDateChip('Last 30 Days', 30),
+                        ActionChip(
+                          avatar: Icon(Icons.date_range_rounded, size: 15, color: _tempDateRange != null ? Theme.of(context).colorScheme.primary : null),
+                          label: Text(_tempDateRange == null
+                              ? 'Custom Range'
+                              : '${_tempDateRange!.start.day}/${_tempDateRange!.start.month} - ${_tempDateRange!.end.day}/${_tempDateRange!.end.month}'),
+                          onPressed: () async {
+                            final picked = await showDateRangePicker(
+                              context: context,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                              initialDateRange: _tempDateRange,
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _tempDateRange = picked;
+                              });
+                            }
                           },
                         ),
-                      );
-                    },
-                  );
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Section 2: Apps Filter
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.apps_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'APPLICATIONS (${availableApps.length})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (availableApps.isNotEmpty)
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                if (_tempSelectedApps.length == availableApps.length) {
+                                  _tempSelectedApps.clear();
+                                } else {
+                                  _tempSelectedApps = availableApps.map((a) => a['package_name'] ?? '').where((pkg) => pkg.isNotEmpty).toList();
+                                }
+                              });
+                            },
+                            child: Text(
+                              _tempSelectedApps.length == availableApps.length ? 'Deselect All' : 'Select All',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (availableApps.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'No recorded applications found in history.',
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      // Search inside apps
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search application...',
+                          prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        ),
+                        onChanged: (val) => setState(() => _searchAppQuery = val),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: isDark ? const Color(0xFF243044) : const Color(0xFFE2E8F0)),
+                        ),
+                        child: filteredApps.isEmpty
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Text('No matching applications found.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: filteredApps.length,
+                                separatorBuilder: (_, _) => Divider(
+                                  height: 1,
+                                  color: isDark ? const Color(0xFF243044) : const Color(0xFFE2E8F0),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final app = filteredApps[index];
+                                  final pkg = app['package_name'] ?? '';
+                                  final name = app['app_name'] ?? pkg;
+                                  final isSelected = _tempSelectedApps.contains(pkg);
+
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _tempSelectedApps.remove(pkg);
+                                        } else {
+                                          _tempSelectedApps.add(pkg);
+                                        }
+                                      });
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade400,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  name,
+                                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  pkg,
+                                                  style: TextStyle(
+                                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                                    fontSize: 11,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer Apply Button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: ElevatedButton(
+                onPressed: () {
+                  provider.setSelectedAppsFilter(_tempSelectedApps);
+                  provider.setSelectedDateRange(_tempDateRange);
+                  Navigator.pop(context);
                 },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _tempSelectedApps.isNotEmpty || _tempDateRange != null
+                          ? 'Apply Filters (${_tempSelectedApps.length + (_tempDateRange != null ? 1 : 0)})'
+                          : 'Show All Results',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
-
-          const SizedBox(height: 24),
-
-          // Apply Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-              ),
-              onPressed: () {
-                provider.setSelectedAppsFilter(_tempSelectedApps);
-                provider.setSelectedDateRange(_tempDateRange);
-                Navigator.pop(context);
-              },
-              child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            ),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildDateChip(String label, int days) {
+    final now = DateTime.now();
+    final isSelected = _tempDateRange != null &&
+        _tempDateRange!.start.day == now.subtract(Duration(days: days)).day &&
+        _tempDateRange!.end.difference(_tempDateRange!.start).inDays == days;
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) _setDatePreset(days);
+      },
     );
   }
 }

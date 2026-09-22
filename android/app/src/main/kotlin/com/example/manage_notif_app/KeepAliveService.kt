@@ -79,10 +79,10 @@ class KeepAliveService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Layanan Pemantau Notifikasi (Background Monitor)",
+                "Notification Monitor Service (Background)",
                 NotificationManager.IMPORTANCE_MIN
             ).apply {
-                description = "Menjaga aplikasi tetap aktif di latar belakang untuk mencatat riwayat notifikasi"
+                description = "Keeps app active in background to record notification history"
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
@@ -101,8 +101,8 @@ class KeepAliveService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Pemantau Notifikasi Aktif")
-            .setContentText("Mencatat riwayat notifikasi secara otomatis di latar belakang")
+            .setContentTitle("Notification Monitor Active")
+            .setContentText("Automatically recording notification history in background")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)

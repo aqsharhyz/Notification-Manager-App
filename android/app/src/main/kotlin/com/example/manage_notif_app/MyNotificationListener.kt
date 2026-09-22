@@ -260,7 +260,7 @@ class MyNotificationListener : NotificationListenerService() {
                 val isDuplicate = cursor.count > 0
                 cursor.close()
                 if (isDuplicate) {
-                    Log.d(TAG, "Skipping duplicate notification (tdk dimasukkan ke record): $packageName | Title: $title | Body: $body")
+                    Log.d(TAG, "Skipping duplicate notification (Not inserted to record): $packageName | Title: $title | Body: $body")
                     db.close()
                     return
                 }

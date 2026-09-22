@@ -39,7 +39,7 @@ class _MainScreenState extends State<MainScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+          content: Text('Opening Android notification access settings...'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -64,7 +64,7 @@ class _MainScreenState extends State<MainScreen> {
               ),
               SizedBox(width: 12),
               Expanded(
-                child: Text('Menghubungkan ulang ke listener notifikasi Android...'),
+                child: Text('Reconnecting to Android notification listener...'),
               ),
             ],
           ),
@@ -83,7 +83,7 @@ class _MainScreenState extends State<MainScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Berhasil terhubung kembali ke sistem notifikasi!'),
+            content: Text('✅ Successfully reconnected to notification listener!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -92,10 +92,10 @@ class _MainScreenState extends State<MainScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Layanan belum merespon. Silakan toggle (matikan & hidupkan lagi) izin di Pengaturan Android.',
+              'Service did not respond. Please toggle (turn off & on again) permission in Android Settings.',
             ),
             action: SnackBarAction(
-              label: 'Pengaturan',
+              label: 'Settings',
               textColor: Colors.amber,
               onPressed: () => provider.requestPermission(),
             ),
@@ -138,7 +138,7 @@ class _MainScreenState extends State<MainScreen> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Status Akses Notifikasi',
+                        'Notification Access Status',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -146,7 +146,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Aplikasi terhubung normal dengan sistem Android dan aktif merekam notifikasi yang masuk.',
+                  'App is connected to Android system and actively recording incoming notifications.',
                   style: TextStyle(fontSize: 13, height: 1.4),
                 ),
                 const SizedBox(height: 20),
@@ -160,7 +160,7 @@ class _MainScreenState extends State<MainScreen> {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Status koneksi diperbarui'),
+                                content: Text('Connection status refreshed'),
                                 duration: Duration(seconds: 1),
                               ),
                             );
@@ -178,7 +178,7 @@ class _MainScreenState extends State<MainScreen> {
                           provider.requestPermission();
                         },
                         icon: const Icon(Icons.settings, size: 16),
-                        label: const Text('Buka Pengaturan'),
+                        label: const Text('Open Settings'),
                       ),
                     ),
                   ],

@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+          content: Text('Opening Android notification access settings...'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -121,7 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               SizedBox(width: 12),
               Expanded(
-                child: Text('Menghubungkan ulang ke listener notifikasi Android...'),
+                child: Text('Reconnecting to Android notification listener...'),
               ),
             ],
           ),
@@ -140,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Berhasil terhubung kembali ke sistem notifikasi!'),
+            content: Text('✅ Successfully reconnected to notification listener!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -149,10 +149,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Layanan belum merespon. Silakan toggle (matikan & hidupkan lagi) izin di Pengaturan Android.',
+              'Service did not respond. Please toggle (turn off & on again) permission in Android Settings.',
             ),
             action: SnackBarAction(
-              label: 'Pengaturan',
+              label: 'Settings',
               textColor: Colors.amber,
               onPressed: () => provider.requestPermission(),
             ),
@@ -168,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Membuka pengaturan izin akses notifikasi Android...'),
+        content: Text('Opening Android notification access settings...'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -328,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           !provider.isPermissionGranted
                               ? 'Grant notification listener permission in Android settings.'
                               : (!provider.isListenerConnected
-                                  ? 'Izin aktif, tapi koneksi terputus oleh Android. Tap Reconnect.'
+                                  ? 'Permission active, but listener disconnected by Android. Tap Reconnect.'
                                   : 'App is actively listening & connected to Android system.'),
                           style: const TextStyle(fontSize: 12),
                         ),
@@ -443,20 +443,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Menjalankan notifikasi ongoing berprioritas rendah agar background listener tidak dibekukan atau dimatikan oleh sistem Android / pembersih RAM saat Anda menutup aplikasi.',
+                    'Runs a low-priority ongoing notification so background listener is not killed by Android OS or RAM cleaners when closing the app.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
-                      'Layanan Latar Belakang Kebal Kill',
+                      'Keep-Alive Background Service',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                     subtitle: Text(
                       settings.keepAliveNotificationEnabled
-                          ? 'Aktif — Notifikasi pemantau sedang berjalan.'
-                          : 'Nonaktif — Berisiko dimatikan sistem saat keluar aplikasi.',
+                          ? 'Active — Monitoring notification is running.'
+                          : 'Disabled — May be stopped by system when leaving app.',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     value: settings.keepAliveNotificationEnabled,
@@ -709,7 +709,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     secondary: const Icon(Icons.do_not_disturb_on_outlined, color: Colors.orange),
                     title: const Text(
-                      'Skip Duplicates (Tdk Masukkan Jika Duplikat)',
+                      'Skip Duplicates',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                     ),
                     subtitle: const Text(
